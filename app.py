@@ -14,7 +14,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
 
 # Load trained face mask detection model
-mask_model = load_model("mask_detector.model")
+mask_model = load_model("mask_detector.h5")
 
 # Webcam status
 webcam_active = False
