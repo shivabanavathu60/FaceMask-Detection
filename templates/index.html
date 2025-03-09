@@ -18,7 +18,9 @@
     <button id="start" class="start">Start Detection</button>
     <button id="stop" class="stop">Stop Detection</button>
     <br><br>
-    <img id="video_feed" src="" width="640" height="480">  <!-- Initially hidden -->
+    <!--img id="video_feed" src="" width="640" height="480"-->  <!-- Initially hidden -->
+    <video id="video_feed" width="640" height="480" autoplay></video>
+    <canvas id="canvas" style="display:none;"></canvas>
 
     <script>
         document.getElementById("start").addEventListener("click", async function() {
