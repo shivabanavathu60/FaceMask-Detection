@@ -2,3 +2,4 @@ Flask==2.2.5
 opencv-python==4.8.0.76
  # Avoid latest versions that may have conflicts
 gunicorn==20.1.0
+numpy<2
