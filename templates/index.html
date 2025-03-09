@@ -7,7 +7,7 @@
     <style>
         body { text-align: center; font-family: Arial, sans-serif; background-color: #f4f4f4; }
         h1 { color: #333; }
-        img { border: 2px solid black; border-radius: 10px; max-width: 100%; height: auto; }
+        img { border: 2px solid black; border-radius: 10px; max-width: 100%; height: auto; display: none; }
         button { margin: 10px; padding: 10px 20px; font-size: 16px; cursor: pointer; }
         .start { background: green; color: white; border: none; }
         .stop { background: red; color: white; border: none; }
@@ -18,8 +18,44 @@
     <button id="start" class="start">Start Detection</button>
     <button id="stop" class="stop">Stop Detection</button>
     <br><br>
-    <img id="video_feed" src="" width="640" height="480">  <!-- Initially empty -->
+    <img id="video_feed" src="" width="640" height="480">  <!-- Initially hidden -->
 
-    <script src="{{ url_for('static', filename='script.js') }}?v=1.1"></script>
+    <script>
+        document.getElementById("start").addEventListener("click", async function() {
+            try {
+                // Request camera permissions
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                console.log("Camera access granted.");
+
+                // Start the backend detection
+                fetch('/toggle_detection', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === "started") {
+                        const videoFeed = document.getElementById("video_feed");
+                        videoFeed.src = "/video_feed";  // Start video stream
+                        videoFeed.style.display = "block"; // Show the video feed
+                    } else {
+                        console.error("Failed to start detection");
+                    }
+                });
+            } catch (error) {
+                alert("Camera access denied. Please allow camera permissions in your browser.");
+                console.error("Camera access error:", error);
+            }
+        });
+
+        document.getElementById("stop").addEventListener("click", function() {
+            fetch('/toggle_detection', { method: 'POST' })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === "stopped") {
+                    const videoFeed = document.getElementById("video_feed");
+                    videoFeed.src = "";  // Stop video stream
+                    videoFeed.style.display = "none"; // Hide video feed
+                }
+            });
+        });
+    </script>
 </body>
 </html>

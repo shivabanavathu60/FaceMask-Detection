@@ -4,7 +4,7 @@ import logging
 import os
 from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing.image import img_to_array
-from flask import Flask, render_template, Response, jsonify
+from flask import Flask, render_template, Response, jsonify, request
 
 app = Flask(__name__)
 
@@ -22,6 +22,7 @@ mask_model = load_model("mask_detector.h5")
 
 # Webcam status
 webcam_active = False
+
 def predict_mask(face_image):
     """ Predict if the face is wearing a mask """
     try:
@@ -34,7 +35,7 @@ def predict_mask(face_image):
         # Expand dimensions to match model input
         face_image = np.expand_dims(face_image, axis=0)
         # Make prediction
-        predictions = mask_model.predict(face_image)[0]
+        predictions = mask_model.predict(face_image, verbose=0)[0]
         mask_prob = predictions[0]
         no_mask_prob = predictions[1]
         logging.info(f"Prediction: Mask={mask_prob:.2f}, No Mask={no_mask_prob:.2f}")
@@ -50,6 +51,9 @@ def generate_frames():
         logging.warning("Webcam not available on Render.")
         return
     cap = cv2.VideoCapture(0)  # Open the webcam
+    if not cap.isOpened():
+        logging.error("Could not open webcam.")
+        return
     logging.info("Webcam started...")
     while webcam_active:
         ret, frame = cap.read()
@@ -93,13 +97,23 @@ def video_feed():
 
 @app.route('/toggle_detection', methods=['POST'])
 def toggle_detection():
-    """Toggle the webcam detection"""
+    """Toggle the webcam detection based on request"""
     global webcam_active
     if IS_RENDER:
         return jsonify({"error": "Webcam not available on Render."}), 503
-    webcam_active = not webcam_active  # Toggle webcam activity
-    logging.info(f"Webcam toggled: {'Started' if webcam_active else 'Stopped'}")
+
+    data = request.get_json()
+    if data and "status" in data:
+        webcam_active = data["status"] == "start"
+
+    logging.info(f"Webcam {'Started' if webcam_active else 'Stopped'}")
     return jsonify({"status": "started" if webcam_active else "stopped"})
+
+
+@app.route('/request_camera_permission', methods=['GET'])
+def request_camera_permission():
+    """Endpoint to check and request camera permission."""
+    return jsonify({"message": "Ensure you have allowed camera access in your browser settings."})
 
 if __name__ == '__main__':
     app.run(debug=True, threaded=True)
