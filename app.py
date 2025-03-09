@@ -8,7 +8,7 @@ from flask import Flask, render_template, Response, jsonify
 app = Flask(__name__)
 
 # Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
 # Load Haar Cascade face detector
 face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
@@ -16,43 +16,35 @@ face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_fronta
 # Load trained face mask detection model
 mask_model = load_model("mask_detector.h5")
 
-# Webcam status
+# Webcam state
 webcam_active = False
+cap = None  # Webcam instance
 
 def predict_mask(face_image):
-    """ Predict if the face is wearing a mask """
+    """Predict if the face is wearing a mask"""
     try:
-        # Convert BGR to RGB (TensorFlow models expect RGB)
+        # Convert BGR to RGB
         face_image = cv2.cvtColor(face_image, cv2.COLOR_BGR2RGB)
+        face_image = cv2.resize(face_image, (224, 224))  # Ensure model input size
+        face_image = img_to_array(face_image) / 255.0  # Normalize
+        face_image = np.expand_dims(face_image, axis=0)  # Expand dimensions
 
-        # Resize to 224x224 (Ensure it matches the model input size)
-        face_image = cv2.resize(face_image, (224, 224))
-
-        # Normalize pixel values
-        face_image = img_to_array(face_image) / 255.0
-
-        # Expand dimensions to match model input
-        face_image = np.expand_dims(face_image, axis=0)
-
-        # Make prediction
+        # Model prediction
         predictions = mask_model.predict(face_image)[0]
+        mask_prob, no_mask_prob = predictions[0], predictions[1]
 
-        # Ensure correct indexing for different models (binary/categorical)
-        mask_prob = predictions[0]
-        no_mask_prob = predictions[1]
-
-        logging.info(f"Prediction: Mask={mask_prob:.2f}, No Mask={no_mask_prob:.2f}")  # Debugging log
+        logging.info(f"Prediction: Mask={mask_prob:.2f}, No Mask={no_mask_prob:.2f}")
         return mask_prob, no_mask_prob
-
     except Exception as e:
         logging.error(f"Error in prediction: {e}")
-        return 0, 1  # Default to "No Mask" if an error occurs
+        return 0, 1  # Default to "No Mask" if error
 
 def generate_frames():
     """Generate frames for video stream"""
-    global webcam_active
-    cap = cv2.VideoCapture(0)  # Open the webcam
-    logging.info("Webcam started...")
+    global webcam_active, cap
+
+    if cap is None:
+        cap = cv2.VideoCapture(0)  # Open webcam
 
     while webcam_active:
         ret, frame = cap.read()
@@ -64,7 +56,7 @@ def generate_frames():
         faces = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=6, minSize=(75, 75))
 
         if len(faces) > 0:
-            logging.info(f"Detected {len(faces)} face(s) in frame.")
+            logging.info(f"Detected {len(faces)} face(s).")
 
         for (x, y, w, h) in faces:
             face = frame[y:y + h, x:x + w]
@@ -81,7 +73,7 @@ def generate_frames():
                 label = f"No Mask: {no_mask_prob * 100:.2f}%"
                 color = (0, 0, 255)  # Red for no mask
 
-            logging.info(f"Face detected at [{x}, {y}, {w}, {h}] - {label}")
+            logging.info(f"Face at [{x}, {y}, {w}, {h}] - {label}")
 
             cv2.rectangle(frame, (x, y), (x + w, y + h), color, 2)
             overlay = frame.copy()
@@ -98,26 +90,26 @@ def generate_frames():
                b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n\r\n')
 
     cap.release()
+    cap = None  # Reset camera
     logging.info("Webcam stopped.")
 
 @app.route('/')
 def index():
-    """Route to render the HTML page"""
+    """Render the HTML page"""
     return render_template('index.html')
 
 @app.route('/video_feed')
 def video_feed():
-    """Route to stream video"""
+    """Stream video"""
     return Response(generate_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
 
 @app.route('/toggle_detection', methods=['POST'])
 def toggle_detection():
-    """Toggle the webcam detection"""
+    """Toggle webcam detection"""
     global webcam_active
-    webcam_active = not webcam_active  # Toggle webcam activity
+    webcam_active = not webcam_active  # Toggle webcam state
     logging.info(f"Webcam toggled: {'Started' if webcam_active else 'Stopped'}")
     return jsonify({"status": "started" if webcam_active else "stopped"})
 
 if __name__ == '__main__':
     app.run(debug=True, threaded=True)
-    #app.run(host='0.0.0.0', port=5000, debug=True, threaded=True)

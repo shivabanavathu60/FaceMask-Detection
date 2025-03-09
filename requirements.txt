@@ -4,3 +4,4 @@ opencv-python==4.8.0.76
 gunicorn==20.1.0
 numpy<2
 tensorflow
+opencv-python-headless
